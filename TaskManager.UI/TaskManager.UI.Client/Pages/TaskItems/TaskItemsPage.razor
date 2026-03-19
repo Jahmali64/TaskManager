@@ -1,0 +1,68 @@
+@page "/task-items"
+@inject ITaskItemApiClient TaskItemApiClient
+@inject ICategoryApiClient CategoryApiClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Task Items</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Task Items</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+        New Task
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <TaskItemTable TaskItems="_taskItems" OnChanged="LoadAsync" />
+}
+
+@code {
+    private IReadOnlyList<TaskItemDto> _taskItems = [];
+    private IReadOnlyList<CategoryDto> _categories = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _taskItems = await TaskItemApiClient.GetAllAsync();
+            _categories = await CategoryApiClient.GetAllAsync();
+        }
+        catch (Refit.ApiException)
+        {
+            Snackbar.Add("Failed to load task items.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        DialogParameters<TaskItemFormDialog> parameters = new()
+        {
+            {
+                dialog => dialog.TaskItem, null
+            },
+            {
+                dialog => dialog.Categories, _categories
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, LoadAsync)
+            }
+        };
+
+        await DialogService.ShowAsync<TaskItemFormDialog>("New Task", parameters, new CustomDialogOptions());
+    }
+}

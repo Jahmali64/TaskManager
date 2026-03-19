@@ -1,0 +1,43 @@
+@inject ITaskItemApiClient TaskItemApiClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText>Delete task <strong>@TaskItem.Title</strong>? This action cannot be undone.</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(_ => Cancel())">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="@(_ => ConfirmAsync())" Disabled="_deleting">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter, EditorRequired] public required TaskItemDto TaskItem { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnSuccess { get; set; }
+
+    private bool _deleting;
+
+    private async Task ConfirmAsync()
+    {
+        _deleting = true;
+        try
+        {
+            await TaskItemApiClient.DeleteAsync(TaskItem.Id);
+            Snackbar.Add("Task deleted.", Severity.Success);
+            await OnSuccess.InvokeAsync();
+            MudDialog.Close();
+        }
+        catch (Refit.ApiException)
+        {
+            Snackbar.Add("Failed to delete task.", Severity.Error);
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

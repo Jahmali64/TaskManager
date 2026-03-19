@@ -1,0 +1,65 @@
+@inject IDialogService DialogService
+
+<MudTable Items="Categories" Hover="true" Striped="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Color</MudTh>
+        <MudTh>Created</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Name</MudTd>
+        <MudTd>
+            <MudChip T="string" Style="@($"background:{context.Color};color:#fff;")" Size="Size.Small">
+                @context.Color
+            </MudChip>
+        </MudTd>
+        <MudTd>@context.CreatedAt.LocalDateTime.ToString("d MMM yyyy")</MudTd>
+        <MudTd>
+            <MudStack Row="true" Spacing="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(_ => OpenEditDialog(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                               OnClick="@(_ => OpenDeleteDialog(context))" />
+            </MudStack>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Class="pa-4">No categories yet. Create one to get started.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<CategoryDto> Categories { get; set; } = [];
+    [Parameter, EditorRequired] public EventCallback OnChanged { get; set; }
+
+    private async Task OpenEditDialog(CategoryDto category)
+    {
+        DialogParameters<CategoryFormDialog> parameters = new()
+        {
+            {
+                dialog => dialog.Category, category
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, OnChanged)
+            }
+        };
+
+        await DialogService.ShowAsync<CategoryFormDialog>("Edit Category", parameters, new CustomDialogOptions());
+    }
+
+    private async Task OpenDeleteDialog(CategoryDto category)
+    {
+        DialogParameters<CategoryDeleteDialog> parameters = new()
+        {
+            {
+                dialog => dialog.Category, category
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, OnChanged)
+            }
+        };
+
+        await DialogService.ShowAsync<CategoryDeleteDialog>("Delete Category", parameters, new CustomDialogOptions());
+    }
+}

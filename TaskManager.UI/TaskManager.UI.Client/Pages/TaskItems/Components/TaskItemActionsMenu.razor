@@ -1,0 +1,107 @@
+@inject ITaskItemApiClient TaskItemApiClient
+@inject ICategoryApiClient CategoryApiClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+    @if (TaskItem.Status != TaskItemStatus.Completed && TaskItem.Status != TaskItemStatus.Cancelled)
+    {
+        <MudMenuItem OnClick="OpenEditDialog" Icon="@Icons.Material.Filled.Edit">Edit</MudMenuItem>
+    }
+    @if (TaskItem.Status == TaskItemStatus.NotStarted)
+    {
+        <MudMenuItem OnClick="StartAsync" Icon="@Icons.Material.Filled.PlayArrow">Start</MudMenuItem>
+    }
+    @if (TaskItem.Status != TaskItemStatus.Completed && TaskItem.Status != TaskItemStatus.Cancelled)
+    {
+        <MudMenuItem OnClick="CompleteAsync" Icon="@Icons.Material.Filled.CheckCircle">Complete</MudMenuItem>
+        <MudMenuItem OnClick="CancelAsync" Icon="@Icons.Material.Filled.Cancel">Cancel</MudMenuItem>
+        <MudMenuItem OnClick="OpenChangePriorityDialog" Icon="@Icons.Material.Filled.Flag">Change Priority</MudMenuItem>
+    }
+    @if (TaskItem.Status is TaskItemStatus.Completed or TaskItemStatus.Cancelled)
+    {
+        <MudMenuItem OnClick="ReopenAsync" Icon="@Icons.Material.Filled.Refresh">Reopen</MudMenuItem>
+    }
+    <MudDivider />
+    <MudMenuItem OnClick="OpenDeleteDialog" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+        <MudText Color="Color.Error">Delete</MudText>
+    </MudMenuItem>
+</MudMenu>
+
+@code {
+    [Parameter, EditorRequired] public required TaskItemDto TaskItem { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnChanged { get; set; }
+
+    private async Task ExecuteAsync(Func<Task<TaskItemDto>> action, string successMessage)
+    {
+        try
+        {
+            await action();
+            Snackbar.Add(successMessage, Severity.Success);
+            await OnChanged.InvokeAsync();
+        }
+        catch (Refit.ApiException ex)
+        {
+            Snackbar.Add(ex.StatusCode == System.Net.HttpStatusCode.BadRequest
+                ? ex.Content ?? ex.Message
+                : "An error occurred.", Severity.Error);
+        }
+    }
+
+    private Task StartAsync() => ExecuteAsync(() => TaskItemApiClient.StartAsync(TaskItem.Id), "Task started.");
+    private Task CompleteAsync() => ExecuteAsync(() => TaskItemApiClient.CompleteAsync(TaskItem.Id), "Task completed.");
+    private Task CancelAsync() => ExecuteAsync(() => TaskItemApiClient.CancelAsync(TaskItem.Id), "Task cancelled.");
+    private Task ReopenAsync() => ExecuteAsync(() => TaskItemApiClient.ReopenAsync(TaskItem.Id), "Task reopened.");
+
+    private async Task OpenEditDialog()
+    {
+        IReadOnlyList<CategoryDto> categories = [];
+        try { categories = await CategoryApiClient.GetAllAsync(); }
+        catch (Refit.ApiException) { Snackbar.Add("Failed to load categories.", Severity.Error); }
+
+        DialogParameters<TaskItemFormDialog> parameters = new()
+        {
+            {
+                dialog => dialog.TaskItem, TaskItem
+            },
+            {
+                dialog => dialog.Categories, categories
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, OnChanged)
+            }
+        };
+
+        await DialogService.ShowAsync<TaskItemFormDialog>("Edit Task", parameters, new CustomDialogOptions());
+    }
+
+    private async Task OpenChangePriorityDialog()
+    {
+        DialogParameters<TaskItemChangePriorityDialog> parameters = new()
+        {
+            {
+                dialog => dialog.TaskItem, TaskItem
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, OnChanged)
+            }
+        };
+
+        await DialogService.ShowAsync<TaskItemChangePriorityDialog>("Change Priority", parameters, new CustomDialogOptions());
+    }
+
+    private async Task OpenDeleteDialog()
+    {
+        DialogParameters<TaskItemDeleteDialog> parameters = new()
+        {
+            {
+                dialog => dialog.TaskItem, TaskItem
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, OnChanged)
+            }
+        };
+
+        await DialogService.ShowAsync<TaskItemDeleteDialog>("Delete Task", parameters, new CustomDialogOptions());
+    }
+}

@@ -1,0 +1,33 @@
+@page "/"
+
+<PageTitle>Task Manager</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Welcome to Task Manager</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-6">Manage your tasks and categories efficiently.</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6">
+        <MudCard>
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Class="mt-2">Task Items</MudText>
+                <MudText Typo="Typo.body2">Create and manage your tasks. Track status, priority, and due dates.</MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Href="task-items">Go to Tasks</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudCard>
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Secondary" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Class="mt-2">Categories</MudText>
+                <MudText Typo="Typo.body2">Organise tasks by category. Assign colours to keep things clear.</MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Text" Color="Color.Secondary" Href="categories">Go to Categories</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>

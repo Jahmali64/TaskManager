@@ -1,0 +1,51 @@
+@inject ITaskItemApiClient TaskItemApiClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect @bind-Value="_priority" Label="Priority">
+            @foreach (TaskItemPriority p in Enum.GetValues<TaskItemPriority>())
+            {
+                <MudSelectItem Value="p">@p</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(_ => Cancel())">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(_ => SubmitAsync())" Disabled="_saving">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter, EditorRequired] public required TaskItemDto TaskItem { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnSuccess { get; set; }
+
+    private bool _saving;
+    private TaskItemPriority _priority;
+
+    protected override void OnParametersSet() => _priority = TaskItem.Priority;
+
+    private async Task SubmitAsync()
+    {
+        _saving = true;
+        try
+        {
+            await TaskItemApiClient.ChangePriorityAsync(TaskItem.Id, new TaskItemChangePriorityRequest(_priority));
+            Snackbar.Add("Priority updated.", Severity.Success);
+            await OnSuccess.InvokeAsync();
+            MudDialog.Close();
+        }
+        catch (Refit.ApiException)
+        {
+            Snackbar.Add("Failed to update priority.", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

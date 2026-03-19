@@ -1,0 +1,43 @@
+@inject ICategoryApiClient CategoryApiClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText>Delete category <strong>@Category.Name</strong>? Tasks assigned to it will have their category removed.</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmAsync" Disabled="_deleting">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter, EditorRequired] public required CategoryDto Category { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnSuccess { get; set; }
+
+    private bool _deleting;
+
+    private async Task ConfirmAsync()
+    {
+        _deleting = true;
+        try
+        {
+            await CategoryApiClient.DeleteAsync(Category.Id);
+            Snackbar.Add("Category deleted.", Severity.Success);
+            await OnSuccess.InvokeAsync();
+            MudDialog.Close();
+        }
+        catch (Refit.ApiException)
+        {
+            Snackbar.Add("Failed to delete category.", Severity.Error);
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

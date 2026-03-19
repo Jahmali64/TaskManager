@@ -1,0 +1,62 @@
+@page "/categories"
+@inject ICategoryApiClient CategoryApiClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Categories</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Categories</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(_ => OpenCreateDialog())">
+        New Category
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <CategoryTable Categories="_categories" OnChanged="LoadAsync" />
+}
+
+@code {
+    private IReadOnlyList<CategoryDto> _categories = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _categories = await CategoryApiClient.GetAllAsync();
+        }
+        catch (Refit.ApiException)
+        {
+            Snackbar.Add("Failed to load categories.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        DialogParameters<CategoryFormDialog> parameters = new()
+        {
+            {
+                dialog => dialog.Category, null
+            },
+            {
+                dialog => dialog.OnSuccess, EventCallback.Factory.Create(this, LoadAsync)
+            }
+        };
+
+        await DialogService.ShowAsync<CategoryFormDialog>("New Category", parameters, new CustomDialogOptions());
+    }
+}

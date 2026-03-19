@@ -1,0 +1,91 @@
+@inject ICategoryApiClient CategoryApiClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_mudForm" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_name" Label="Name" Required="true" RequiredError="Name is required."
+                          MaxLength="100" Immediate="true" />
+            <MudTextField @bind-Value="_color" Label="Color (hex, e.g. #FF5733)" Class="mt-3"
+                          Validation="@((string? v) => ValidateColor(v))" Immediate="true" />
+            @if (!string.IsNullOrWhiteSpace(_color))
+            {
+                <MudChip T="string" Style="@($"background:{_color};color:#fff;")" Size="Size.Small" Class="mt-2">
+                    Preview
+                </MudChip>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(_ => Cancel())">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(_ => SubmitAsync())" Disabled="_saving">
+            @(Category is null ? "Create" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public CategoryDto? Category { get; set; }
+    [Parameter] public EventCallback OnSuccess { get; set; }
+
+    private MudForm? _mudForm;
+    private bool _isValid;
+    private bool _saving;
+    private string _name = string.Empty;
+    private string? _color;
+
+    protected override void OnParametersSet()
+    {
+        _name = Category?.Name ?? string.Empty;
+        _color = Category?.Color;
+    }
+
+    private string? ValidateColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return System.Text.RegularExpressions.Regex.IsMatch(value, @"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
+            ? null
+            : "Must be a valid hex color, e.g. #FF5733 or #F53";
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_mudForm is null) return;
+        await _mudForm.ValidateAsync();
+        
+        if (!_isValid) return;
+
+        _saving = true;
+        try
+        {
+            if (Category is null)
+            {
+                await CategoryApiClient.CreateAsync(new CategoryCreateRequest(_name, _color));
+                Snackbar.Add("Category created.", Severity.Success);
+            }
+            else
+            {
+                await CategoryApiClient.UpdateAsync(Category.Id, new CategoryUpdateRequest(_name, _color));
+                Snackbar.Add("Category updated.", Severity.Success);
+            }
+
+            await OnSuccess.InvokeAsync();
+            MudDialog.Close();
+        }
+        catch (Refit.ApiException ex)
+        {
+            string message = ex.StatusCode == System.Net.HttpStatusCode.BadRequest
+                ? ex.Content ?? ex.Message
+                : "An error occurred. Please try again.";
+            Snackbar.Add(message, Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

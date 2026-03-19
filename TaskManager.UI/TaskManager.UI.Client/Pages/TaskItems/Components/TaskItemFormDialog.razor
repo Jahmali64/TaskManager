@@ -1,0 +1,103 @@
+@inject ITaskItemApiClient TaskItemApiClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_mudForm" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true" RequiredError="Title is required."
+                          MaxLength="200" Immediate="true" />
+            <MudTextField @bind-Value="_description" Label="Description" Lines="3" MaxLength="1000"
+                          Class="mt-3" Immediate="true" />
+            <MudDatePicker @bind-Date="_dueDate" Label="Due Date" Required="true" RequiredError="Due date is required."
+                           MinDate="DateTime.Today" Class="mt-3" />
+            <MudSelect @bind-Value="_priority" Label="Priority" Class="mt-3">
+                @foreach (TaskItemPriority p in Enum.GetValues<TaskItemPriority>())
+                {
+                    <MudSelectItem Value="p">@p</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect @bind-Value="_categoryId" Label="Category (optional)" Class="mt-3" Clearable="true">
+                @foreach (CategoryDto cat in Categories)
+                {
+                    <MudSelectItem Value="@((int?)cat.Id)">@cat.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="_saving">
+            @(TaskItem is null ? "Create" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public TaskItemDto? TaskItem { get; set; }
+    [Parameter] public IReadOnlyList<CategoryDto> Categories { get; set; } = [];
+    [Parameter] public EventCallback OnSuccess { get; set; }
+
+    private MudForm? _mudForm;
+    private bool _isValid;
+    private bool _saving;
+    private string _title = string.Empty;
+    private string? _description;
+    private DateTime? _dueDate;
+    private TaskItemPriority _priority = TaskItemPriority.Medium;
+    private int? _categoryId;
+
+    protected override void OnParametersSet()
+    {
+        _title = TaskItem?.Title ?? string.Empty;
+        _description = TaskItem?.Description;
+        _dueDate = TaskItem?.DueDate.LocalDateTime ?? DateTime.Today.AddDays(1);
+        _priority = TaskItem?.Priority ?? TaskItemPriority.Medium;
+        _categoryId = TaskItem?.CategoryId;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_mudForm is null) return;
+        await _mudForm.ValidateAsync();
+        
+        if (!_isValid || _dueDate is null) return;
+
+        DateTimeOffset dueDate = ToEndOfDayUtc(_dueDate.Value);
+
+        _saving = true;
+        try
+        {
+            if (TaskItem is null)
+            {
+                await TaskItemApiClient.CreateAsync(new TaskItemCreateRequest(_title, dueDate, _description, _priority, _categoryId));
+                Snackbar.Add("Task created.", Severity.Success);
+            }
+            else
+            {
+                await TaskItemApiClient.UpdateAsync(TaskItem.Id, new TaskItemUpdateRequest(_title, dueDate, _description, _priority, _categoryId));
+                Snackbar.Add("Task updated.", Severity.Success);
+            }
+
+            await OnSuccess.InvokeAsync();
+            MudDialog.Close();
+        }
+        catch (Refit.ApiException ex)
+        {
+            string message = ex.StatusCode == System.Net.HttpStatusCode.BadRequest
+                ? ex.Content ?? ex.Message
+                : "An error occurred. Please try again.";
+            Snackbar.Add(message, Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private static DateTimeOffset ToEndOfDayUtc(DateTime date) =>
+        new(DateTime.SpecifyKind(date.Date, DateTimeKind.Utc).AddDays(1).AddTicks(-1), TimeSpan.Zero);
+}

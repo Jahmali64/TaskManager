@@ -1,0 +1,67 @@
+<MudTable Items="TaskItems" Hover Striped Dense>
+    <HeaderContent>
+        <MudTh>Title</MudTh>
+        <MudTh>Priority</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Due Date</MudTh>
+        <MudTh>Category</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Title</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="PriorityColor(context.Priority)" Size="Size.Small">
+                @context.Priority
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudChip T="string" Color="StatusColor(context.Status)" Size="Size.Small">
+                @context.Status
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudText Color="@(context.IsOverdue ? Color.Error : Color.Default)">
+                @context.DueDate.LocalDateTime.ToString("d MMM yyyy")
+            </MudText>
+        </MudTd>
+        <MudTd>
+            @if (context.CategoryId.HasValue)
+            {
+                <MudChip T="string" Size="Size.Small">@context.CategoryName</MudChip>
+            }
+            else
+            {
+                <MudText Color="Color.Secondary">—</MudText>
+            }
+        </MudTd>
+        <MudTd>
+            <TaskItemActionsMenu TaskItem="context" OnChanged="OnChanged" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Class="pa-4">No tasks yet. Create one to get started.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<TaskItemDto> TaskItems { get; set; } = [];
+    [Parameter, EditorRequired] public EventCallback OnChanged { get; set; }
+
+    private static Color PriorityColor(TaskItemPriority priority) => priority switch
+    {
+        TaskItemPriority.Low => Color.Default,
+        TaskItemPriority.Medium => Color.Info,
+        TaskItemPriority.High => Color.Warning,
+        TaskItemPriority.Critical => Color.Error,
+        _ => Color.Default
+    };
+
+    private static Color StatusColor(TaskItemStatus status) => status switch
+    {
+        TaskItemStatus.NotStarted => Color.Default,
+        TaskItemStatus.InProgress => Color.Primary,
+        TaskItemStatus.Completed => Color.Success,
+        TaskItemStatus.Cancelled => Color.Error,
+        _ => Color.Default
+    };
+}

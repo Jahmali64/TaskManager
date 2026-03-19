@@ -1,0 +1,6 @@
+@TaskManager.Api_HostAddress = http://localhost:5298
+
+GET {{TaskManager.Api_HostAddress}}/api/v1/categories/
+Accept: application/json
+
+###
